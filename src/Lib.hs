@@ -1,11 +1,22 @@
 module Lib where
 
+import Data.List
+
 data Task m
   = Namespace String [Task m]
   | Task String (m ())
 
+printTasks :: IO ()
+printTasks = mapM_ (putStrLn . fst) $ listTasks [] deploy
+
+listTasks :: [String] -> [Task m] -> [(String, m ())]
+listTasks prefix = mconcat . fmap listTask
+  where
+    listTask (Namespace name tasks) = listTasks (prefix <> [name]) tasks
+    listTask (Task name f) = [(intercalate ":" $ prefix <> [name], f)]
+
 -- https://github.com/capistrano/capistrano/blob/master/lib/capistrano/tasks/deploy.rake
-deploy :: Monad m => [Task m]
+deploy :: [Task IO]
 deploy =
   [ Namespace "deploy"
       [ Task "starting" $ pure ()
