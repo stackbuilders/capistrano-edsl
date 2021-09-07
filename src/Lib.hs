@@ -12,8 +12,14 @@ data TaskException = TaskNotFoundException
 
 instance Exception TaskException
 
-printTasks :: IO ()
-printTasks = mapM_ (putStrLn . fst) $ listTasks [] deploy
+someFunc :: IO ()
+someFunc = do
+  let tasks = listTasks [] deploy
+  printTasks tasks
+  runTask tasks "deploy:starting"
+
+printTasks :: [(String, IO ())] -> IO ()
+printTasks tasks = mapM_ (putStrLn . fst) tasks
 
 runTask :: [(String, IO ())] -> String -> IO ()
 runTask tasks name =
