@@ -1,15 +1,27 @@
 module Lib where
 
+import Control.Exception
 import Data.List
 
 data Task m
   = Namespace String [Task m]
   | Task String (m ())
 
+data TaskException = TaskNotFoundException
+  deriving Show
+
+instance Exception TaskException
+
 printTasks :: IO ()
 printTasks = mapM_ (putStrLn . fst) $ listTasks [] deploy
 
-listTasks :: [String] -> [Task m] -> [(String, m ())]
+runTask :: [(String, IO ())] -> String -> IO ()
+runTask tasks name =
+  case lookup name tasks of
+    Nothing -> throwIO TaskNotFoundException
+    Just f -> f
+
+listTasks :: [String] -> [Task IO] -> [(String, IO ())]
 listTasks prefix = mconcat . fmap listTask
   where
     listTask (Namespace name tasks) = listTasks (prefix <> [name]) tasks
@@ -19,7 +31,7 @@ listTasks prefix = mconcat . fmap listTask
 deploy :: [Task IO]
 deploy =
   [ Namespace "deploy"
-      [ Task "starting" $ pure ()
+      [ Task "starting" $ print "Starting"
       , Task "print_config_variables" $ pure ()
       , Task "updating" $ pure ()
       , Task "reverting" $ pure ()
