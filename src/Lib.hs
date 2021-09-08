@@ -5,29 +5,28 @@ import Data.List
 
 data Task m
   = Namespace String [Task m]
-  | Task String (m ())
+  | Task String ((String -> m ()) -> m ())
 
 data TaskException = TaskNotFoundException
   deriving Show
 
 instance Exception TaskException
 
-someFunc :: IO ()
-someFunc = do
+runDeployStarting :: IO ()
+runDeployStarting =
   let tasks = listTasks [] deploy
-  printTasks tasks
-  runTask tasks "deploy:starting"
+   in runTask tasks "deploy:starting"
 
-printTasks :: [(String, IO ())] -> IO ()
+printTasks :: [(String, (String -> IO ()) -> IO ())] -> IO ()
 printTasks tasks = mapM_ (putStrLn . fst) tasks
 
-runTask :: [(String, IO ())] -> String -> IO ()
+runTask :: [(String, (String -> IO ()) -> IO ())] -> String -> IO ()
 runTask tasks name =
   case lookup name tasks of
     Nothing -> throwIO TaskNotFoundException
-    Just f -> f
+    Just f -> f $ runTask tasks
 
-listTasks :: [String] -> [Task IO] -> [(String, IO ())]
+listTasks :: [String] -> [Task IO] -> [(String, (String -> IO ()) -> IO ())]
 listTasks prefix = mconcat . fmap listTask
   where
     listTask (Namespace name tasks) = listTasks (prefix <> [name]) tasks
@@ -37,37 +36,34 @@ listTasks prefix = mconcat . fmap listTask
 deploy :: [Task IO]
 deploy =
   [ Namespace "deploy"
-      [ Task "starting" $ print "Starting"
-      , Task "print_config_variables" $ pure ()
-      , Task "updating" $ pure ()
-      , Task "reverting" $ pure ()
-      , Task "publishing" $ pure ()
-      , Task "finishing" $ pure ()
-      , Task "finishing_rollback" $ pure ()
-      , Task "finished" $ pure ()
-      , Task "check" $ pure ()
+      [ Task "starting" $ \invoke -> do
+          putStrLn "Running deploy:starting"
+          invoke "deploy:check"
+          invoke "deploy:set_previous_revision"
+
+      , Task "check" $ \invoke -> do
+          putStrLn "Running deploy:check"
+          invoke "deploy:check:directories"
+          invoke "deploy:check:linked_dirs"
+          invoke "deploy:check:make_linked_dirs"
+          invoke "deploy:check:linked_files"
+
       , Namespace "check"
-          [ Task "directories" $ pure ()
-          , Task "linked_dirs" $ pure ()
-          , Task "make_linked_dirs" $ pure ()
-          , Task "linked_files" $ pure ()
+          [ Task "directories" $ \invoke ->
+              putStrLn "Running deploy:check:directories"
+
+          , Task "linked_dirs" $ \invoke ->
+              putStrLn "Running deploy:check:linked_dirs"
+
+          , Task "make_linked_dirs" $ \invoke ->
+              putStrLn "Running deploy:check:make_linked_dirs"
+
+          , Task "linked_files" $ \invoke ->
+              putStrLn "Running deploy:check:linked_files"
           ]
-      , Namespace "symlink"
-          [ Task "release" $ pure ()
-          , Task "shared" $ pure ()
-          , Task "linked_dirs" $ pure ()
-          , Task "linked_files" $ pure ()
-          ]
-      , Task "cleanup" $ pure ()
-      , Task "cleanup_rollback" $ pure ()
-      , Task "log_revision" $ pure ()
-      , Task "revert_release" $ pure ()
-      , Task "new_release_path" $ pure ()
-      , Task "rollback_release_path" $ pure ()
-      , Task "set_current_revision" $ pure ()
-      , Task "set_previous_revision" $ pure ()
-      , Task "restart" $ pure ()
-      , Task "failed" $ pure ()
+
+      , Task "set_previous_revision" $ \invoke ->
+          putStrLn "Running deploy:set_previous_revision"
       ]
 
   ]
