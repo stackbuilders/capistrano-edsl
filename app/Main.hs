@@ -1,6 +1,6 @@
 module Main where
 
-import Lib
+import Capistrano.EDSL
 
 main :: IO ()
 main = runDeployStarting

@@ -1,4 +1,4 @@
-module Lib where
+module Capistrano.EDSL where
 
 import Control.Exception
 import Control.Monad.Writer
