@@ -15,7 +15,7 @@ instance Exception TaskException
 runDeployStarting :: IO ()
 runDeployStarting =
   let tasks = listTasks [] deploy
-   in runTask tasks "deploy:starting"
+  in runTask tasks "deploy:starting"
 
 printTasks :: [(String, (String -> IO ()) -> IO ())] -> IO ()
 printTasks tasks = mapM_ (putStrLn . fst) tasks
@@ -65,5 +65,4 @@ deploy =
       , Task "set_previous_revision" $ \invoke ->
           putStrLn "Running deploy:set_previous_revision"
       ]
-
   ]
