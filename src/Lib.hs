@@ -15,7 +15,7 @@ instance Exception TaskException
 
 runDeployStarting :: IO ()
 runDeployStarting =
-  let tasks = listTasks [] $ execWriter deploy
+  let tasks = listTasks [] deploy
   in runTask tasks "deploy:starting"
 
 printTasks :: [(String, (String -> IO ()) -> IO ())] -> IO ()
@@ -42,8 +42,8 @@ task :: String -> ((String -> m ()) -> m ()) -> Writer [Task m] ()
 task name f = tell [Task name f]
 
 -- https://github.com/capistrano/capistrano/blob/master/lib/capistrano/tasks/deploy.rake
-deploy :: Writer [Task IO] ()
-deploy =
+deploy :: [Task IO]
+deploy = execWriter $
   namespace "deploy" $ do
     task "starting" $ \invoke -> do
       putStrLn "Running deploy:starting"
