@@ -1,6 +1,7 @@
 module Lib where
 
 import Control.Exception
+import Control.Monad.Writer
 import Data.List
 
 data Task m
@@ -14,7 +15,7 @@ instance Exception TaskException
 
 runDeployStarting :: IO ()
 runDeployStarting =
-  let tasks = listTasks [] deploy
+  let tasks = listTasks [] $ execWriter deploy
   in runTask tasks "deploy:starting"
 
 printTasks :: [(String, (String -> IO ()) -> IO ())] -> IO ()
@@ -32,37 +33,42 @@ listTasks prefix = mconcat . fmap listTask
     listTask (Namespace name tasks) = listTasks (prefix <> [name]) tasks
     listTask (Task name f) = [(intercalate ":" $ prefix <> [name], f)]
 
+-- EDSL
+
+namespace :: String -> Writer [Task m] () -> Writer [Task m] ()
+namespace name tasks = tell [Namespace name $ execWriter tasks]
+
+task :: String -> ((String -> m ()) -> m ()) -> Writer [Task m] ()
+task name f = tell [Task name f]
+
 -- https://github.com/capistrano/capistrano/blob/master/lib/capistrano/tasks/deploy.rake
-deploy :: [Task IO]
+deploy :: Writer [Task IO] ()
 deploy =
-  [ Namespace "deploy"
-      [ Task "starting" $ \invoke -> do
-          putStrLn "Running deploy:starting"
-          invoke "deploy:check"
-          invoke "deploy:set_previous_revision"
+  namespace "deploy" $ do
+    task "starting" $ \invoke -> do
+      putStrLn "Running deploy:starting"
+      invoke "deploy:check"
+      invoke "deploy:set_previous_revision"
 
-      , Task "check" $ \invoke -> do
-          putStrLn "Running deploy:check"
-          invoke "deploy:check:directories"
-          invoke "deploy:check:linked_dirs"
-          invoke "deploy:check:make_linked_dirs"
-          invoke "deploy:check:linked_files"
+    task "check" $ \invoke -> do
+      putStrLn "Running deploy:check"
+      invoke "deploy:check:directories"
+      invoke "deploy:check:linked_dirs"
+      invoke "deploy:check:make_linked_dirs"
+      invoke "deploy:check:linked_files"
 
-      , Namespace "check"
-          [ Task "directories" $ \invoke ->
-              putStrLn "Running deploy:check:directories"
+    namespace "check" $ do
+      task "directories" $ \invoke ->
+        putStrLn "Running deploy:check:directories"
 
-          , Task "linked_dirs" $ \invoke ->
-              putStrLn "Running deploy:check:linked_dirs"
+      task "linked_dirs" $ \invoke ->
+        putStrLn "Running deploy:check:linked_dirs"
 
-          , Task "make_linked_dirs" $ \invoke ->
-              putStrLn "Running deploy:check:make_linked_dirs"
+      task "make_linked_dirs" $ \invoke ->
+        putStrLn "Running deploy:check:make_linked_dirs"
 
-          , Task "linked_files" $ \invoke ->
-              putStrLn "Running deploy:check:linked_files"
-          ]
+      task "linked_files" $ \invoke ->
+        putStrLn "Running deploy:check:linked_files"
 
-      , Task "set_previous_revision" $ \invoke ->
-          putStrLn "Running deploy:set_previous_revision"
-      ]
-  ]
+    task "set_previous_revision" $ \invoke ->
+      putStrLn "Running deploy:set_previous_revision"
